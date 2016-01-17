@@ -28,6 +28,7 @@ import java.util.Random;
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -39,8 +40,12 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentManager.OnBackStackChangedListener;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -54,7 +59,6 @@ import org.sufficientlysecure.keychain.operations.results.ExportResult;
 import org.sufficientlysecure.keychain.provider.TemporaryFileProvider;
 import org.sufficientlysecure.keychain.service.BackupKeyringParcel;
 import org.sufficientlysecure.keychain.ui.base.CryptoOperationFragment;
-import org.sufficientlysecure.keychain.ui.dialog.ProgressDialogFragment;
 import org.sufficientlysecure.keychain.ui.util.Notify;
 import org.sufficientlysecure.keychain.ui.util.Notify.ActionListener;
 import org.sufficientlysecure.keychain.ui.util.Notify.Style;
@@ -81,11 +85,12 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
     String mBackupCode;
 
     private EditText[] mCodeEditText;
-    private ToolableViewAnimator mStatusAnimator, mTitleAnimator, mCodeFieldsAnimator, mFaqAnimator;
+    private ToolableViewAnimator mStatusAnimator, mTitleAnimator, mCodeFieldsAnimator;
     private Integer mBackStackLevel;
 
     private Uri mCachedBackupUri;
     private boolean mShareNotSave;
+    private boolean mDebugModeAcceptAnyCode;
 
     public static BackupCodeFragment newInstance(long[] masterKeyIds, boolean exportSecret) {
         BackupCodeFragment frag = new BackupCodeFragment();
@@ -105,6 +110,41 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
 
     BackupCodeState mCurrentState = BackupCodeState.STATE_UNINITIALIZED;
 
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (Constants.DEBUG) {
+            setHasOptionsMenu(true);
+        }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        if (Constants.DEBUG) {
+            inflater.inflate(R.menu.backup_fragment_debug_menu, menu);
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (Constants.DEBUG && item.getItemId() == R.id.debug_accept_any_log) {
+            boolean newCheckedState = !item.isChecked();
+            item.setChecked(newCheckedState);
+            if (newCheckedState && TextUtils.isEmpty(mCodeEditText[0].getText())) {
+                mCodeEditText[0].setText("ABCDEF");
+                mCodeEditText[1].setText("GHIJKL");
+                mCodeEditText[2].setText("MNOPQR");
+                mCodeEditText[3].setText("STUVW");
+                Notify.create(getActivity(), "Actual backup code is all 'A's", Style.WARN).show();
+            }
+            mDebugModeAcceptAnyCode = newCheckedState;
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     void switchState(BackupCodeState state, boolean animate) {
 
         switch (state) {
@@ -115,14 +155,12 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
                 mTitleAnimator.setDisplayedChild(0, animate);
                 mStatusAnimator.setDisplayedChild(0, animate);
                 mCodeFieldsAnimator.setDisplayedChild(0, animate);
-                mFaqAnimator.setDisplayedChild(0, animate);
                 break;
 
             case STATE_INPUT:
                 mTitleAnimator.setDisplayedChild(1, animate);
                 mStatusAnimator.setDisplayedChild(1, animate);
                 mCodeFieldsAnimator.setDisplayedChild(1, animate);
-                mFaqAnimator.setDisplayedChild(1, animate);
                 for (EditText editText : mCodeEditText) {
                     editText.setText("");
                 }
@@ -135,7 +173,6 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
                 mTitleAnimator.setDisplayedChild(1, false);
                 mStatusAnimator.setDisplayedChild(2, animate);
                 mCodeFieldsAnimator.setDisplayedChild(1, false);
-                mFaqAnimator.setDisplayedChild(0, false);
 
                 hideKeyboard();
 
@@ -152,7 +189,6 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
                 mTitleAnimator.setDisplayedChild(2, animate);
                 mStatusAnimator.setDisplayedChild(3, animate);
                 mCodeFieldsAnimator.setDisplayedChild(1, false);
-                mFaqAnimator.setDisplayedChild(0, animate);
 
                 hideKeyboard();
 
@@ -222,7 +258,6 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
         mStatusAnimator = (ToolableViewAnimator) view.findViewById(R.id.status_animator);
         mTitleAnimator = (ToolableViewAnimator) view.findViewById(R.id.title_animator);
         mCodeFieldsAnimator = (ToolableViewAnimator) view.findViewById(R.id.code_animator);
-        mFaqAnimator = (ToolableViewAnimator) view.findViewById(R.id.faq_animator);
 
         View backupInput = view.findViewById(R.id.button_backup_input);
         backupInput.setOnClickListener(new OnClickListener() {
@@ -258,7 +293,7 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
             }
         });
 
-        view.findViewById(R.id.tv_faq).setOnClickListener(new OnClickListener() {
+        view.findViewById(R.id.button_faq).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 showFaq();
@@ -330,6 +365,11 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
     }
 
     private void checkIfCodeIsCorrect() {
+
+        if (Constants.DEBUG && mDebugModeAcceptAnyCode) {
+            switchState(BackupCodeState.STATE_OK, true);
+            return;
+        }
 
         StringBuilder backupCodeInput = new StringBuilder(26);
         for (EditText editText : mCodeEditText) {
@@ -515,7 +555,11 @@ public class BackupCodeFragment extends CryptoOperationFragment<BackupKeyringPar
     @Nullable
     @Override
     public BackupKeyringParcel createOperationInput() {
-        return new BackupKeyringParcel(new Passphrase(mBackupCode), mMasterKeyIds, mExportSecret, mCachedBackupUri);
+        Passphrase passphrase = new Passphrase(mBackupCode);
+        if (Constants.DEBUG && mDebugModeAcceptAnyCode) {
+            passphrase = new Passphrase("AAAAAA-AAAAAA-AAAAAA-AAAAAA");
+        }
+        return new BackupKeyringParcel(passphrase, mMasterKeyIds, mExportSecret, mCachedBackupUri);
     }
 
     @Override

@@ -35,6 +35,7 @@ import org.spongycastle.openpgp.PGPSignatureGenerator;
 import org.spongycastle.openpgp.operator.jcajce.JcePBEKeyEncryptionMethodGenerator;
 import org.spongycastle.openpgp.operator.jcajce.JcePGPDataEncryptorBuilder;
 import org.spongycastle.openpgp.operator.jcajce.NfcSyncPGPContentSignerBuilder;
+import org.spongycastle.openpgp.operator.jcajce.PGPUtil;
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.operations.BaseOperation;
@@ -574,6 +575,13 @@ public class PgpSignEncryptOperation extends BaseOperation {
                 // silently catch
             }
             result.setDetachedSignature(detachedByteOut.toByteArray());
+            try {
+                String digestName = PGPUtil.getDigestName(input.getSignatureHashAlgorithm());
+                // construct micalg parameter according to https://tools.ietf.org/html/rfc3156#section-5
+                result.setMicAlgDigestName("pgp-" + digestName.toLowerCase());
+            } catch (PGPException e) {
+                Log.e(Constants.TAG, "error setting micalg parameter!", e);
+            }
         }
         return result;
     }

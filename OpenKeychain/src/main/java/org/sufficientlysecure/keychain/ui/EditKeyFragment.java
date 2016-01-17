@@ -223,14 +223,16 @@ public class EditKeyFragment extends QueueingCryptoOperationFragment<SaveKeyring
         getLoaderManager().initLoader(LOADER_ID_USER_IDS, null, EditKeyFragment.this);
         getLoaderManager().initLoader(LOADER_ID_SUBKEYS, null, EditKeyFragment.this);
 
-        mUserIdsAdapter = new UserIdsAdapter(getActivity(), null, 0, mSaveKeyringParcel);
+        mUserIdsAdapter = new UserIdsAdapter(getActivity(), null, 0);
+        mUserIdsAdapter.setEditMode(mSaveKeyringParcel);
         mUserIdsList.setAdapter(mUserIdsAdapter);
 
         // TODO: SaveParcel from savedInstance?!
         mUserIdsAddedAdapter = new UserIdsAddedAdapter(getActivity(), mSaveKeyringParcel.mAddUserIds, false);
         mUserIdsAddedList.setAdapter(mUserIdsAddedAdapter);
 
-        mSubkeysAdapter = new SubkeysAdapter(getActivity(), null, 0, mSaveKeyringParcel);
+        mSubkeysAdapter = new SubkeysAdapter(getActivity(), null, 0);
+        mSubkeysAdapter.setEditMode(mSaveKeyringParcel);
         mSubkeysList.setAdapter(mSubkeysAdapter);
 
         mSubkeysAddedAdapter = new SubkeysAddedAdapter(getActivity(), mSaveKeyringParcel.mAddSubKeys, false);
@@ -433,9 +435,9 @@ public class EditKeyFragment extends QueueingCryptoOperationFragment<SaveKeyring
                         }
                         // toggle
                         change.mDummyStrip = !change.mDummyStrip;
-                        if (change.mDummyStrip && change.mMoveKeyToCard) {
+                        if (change.mDummyStrip && change.mMoveKeyToSecurityToken) {
                             // User had chosen to divert key, but now wants to strip it instead.
-                            change.mMoveKeyToCard = false;
+                            change.mMoveKeyToSecurityToken = false;
                         }
                         break;
                     }
@@ -477,8 +479,8 @@ public class EditKeyFragment extends QueueingCryptoOperationFragment<SaveKeyring
 //                            break;
 //                        }
 //                        // toggle
-//                        change.mMoveKeyToCard = !change.mMoveKeyToCard;
-//                        if (change.mMoveKeyToCard && change.mDummyStrip) {
+//                        change.mMoveKeyToSecurityToken = !change.mMoveKeyToSecurityToken;
+//                        if (change.mMoveKeyToSecurityToken && change.mDummyStrip) {
 //                            // User had chosen to strip key, but now wants to divert it.
 //                            change.mDummyStrip = false;
 //                        }
@@ -554,7 +556,7 @@ public class EditKeyFragment extends QueueingCryptoOperationFragment<SaveKeyring
         // pre-fill out primary name
         String predefinedName = KeyRing.splitUserId(mPrimaryUserId).name;
         AddUserIdDialogFragment addUserIdDialog = AddUserIdDialogFragment.newInstance(messenger,
-                predefinedName);
+                predefinedName, true);
 
         addUserIdDialog.show(getActivity().getSupportFragmentManager(), "addUserIdDialog");
     }
@@ -610,7 +612,7 @@ public class EditKeyFragment extends QueueingCryptoOperationFragment<SaveKeyring
                 new SingletonResult(SingletonResult.RESULT_ERROR, reason));
 
         // Finish with result
-        getActivity().setResult(EditKeyActivity.RESULT_OK, intent);
+        getActivity().setResult(Activity.RESULT_OK, intent);
         getActivity().finish();
     }
 
@@ -628,7 +630,7 @@ public class EditKeyFragment extends QueueingCryptoOperationFragment<SaveKeyring
         // if good -> finish, return result to showkey and display there!
         Intent intent = new Intent();
         intent.putExtra(OperationResult.EXTRA_RESULT, result);
-        activity.setResult(EditKeyActivity.RESULT_OK, intent);
+        activity.setResult(Activity.RESULT_OK, intent);
         activity.finish();
 
     }

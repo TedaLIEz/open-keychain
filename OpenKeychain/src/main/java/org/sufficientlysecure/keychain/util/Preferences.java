@@ -18,31 +18,40 @@
 
 package org.sufficientlysecure.keychain.util;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 
-import android.content.res.Resources;
-import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-
-import org.sufficientlysecure.keychain.Constants;
-import org.sufficientlysecure.keychain.Constants.Pref;
-import org.sufficientlysecure.keychain.service.KeyserverSyncAdapterService;
-
+import java.io.Serializable;
 import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Parcel;
+import android.os.Parcelable;
+import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+
+import org.sufficientlysecure.keychain.Constants;
+import org.sufficientlysecure.keychain.Constants.Pref;
+import org.sufficientlysecure.keychain.R;
+import org.sufficientlysecure.keychain.service.KeyserverSyncAdapterService;
 
 /**
  * Singleton Implementation of a Preference Helper
  */
+@SuppressLint("CommitPrefEdits")
 public class Preferences {
     private static Preferences sPreferences;
     private SharedPreferences mSharedPreferences;
-    private Resources mResources;
 
     private static String PREF_FILE_NAME = "APG.main";
     private static int PREF_FILE_MODE = Context.MODE_MULTI_PROCESS;
@@ -62,10 +71,15 @@ public class Preferences {
     }
 
     private Preferences(Context context) {
-        mResources = context.getResources();
         updateSharedPreferences(context);
     }
 
+    /**
+     * Makes android's preference framework write to our file instead of default.
+     * This allows us to use the "persistent" attribute to simplify code, which automatically
+     * writes and reads preference values.
+     * @param manager
+     */
     public static void setPreferenceManagerFileAndMode(PreferenceManager manager) {
         manager.setSharedPreferencesName(PREF_FILE_NAME);
         manager.setSharedPreferencesMode(PREF_FILE_MODE);
@@ -83,22 +97,6 @@ public class Preferences {
     public void setLanguage(String value) {
         SharedPreferences.Editor editor = mSharedPreferences.edit();
         editor.putString(Constants.Pref.LANGUAGE, value);
-        editor.commit();
-    }
-
-    public long getPassphraseCacheTtl() {
-        int ttl = mSharedPreferences.getInt(Constants.Pref.PASSPHRASE_CACHE_TTL, 180);
-        // fix the value if it was set to "never" in previous versions, which currently is not
-        // supported
-        if (ttl == 0) {
-            ttl = 180;
-        }
-        return (long) ttl;
-    }
-
-    public void setPassphraseCacheTtl(int value) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putInt(Constants.Pref.PASSPHRASE_CACHE_TTL, value);
         editor.commit();
     }
 
@@ -126,14 +124,8 @@ public class Preferences {
         return mSharedPreferences.getBoolean(Constants.Pref.FIRST_TIME, true);
     }
 
-    public boolean useNumKeypadForYubiKeyPin() {
-        return mSharedPreferences.getBoolean(Pref.USE_NUMKEYPAD_FOR_YUBIKEY_PIN, true);
-    }
-
-    public void setUseNumKeypadForYubiKeyPin(boolean useNumKeypadForYubikeyPin) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Pref.USE_NUMKEYPAD_FOR_YUBIKEY_PIN, useNumKeypadForYubikeyPin);
-        editor.commit();
+    public boolean useNumKeypadForSecurityTokenPin() {
+        return mSharedPreferences.getBoolean(Pref.USE_NUMKEYPAD_FOR_SECURITY_TOKEN_PIN, true);
     }
 
     public void setFirstTime(boolean value) {
@@ -145,7 +137,7 @@ public class Preferences {
     public String[] getKeyServers() {
         String rawData = mSharedPreferences.getString(Constants.Pref.KEY_SERVERS,
                 Constants.Defaults.KEY_SERVERS);
-        if (rawData.equals("")) {
+        if ("".equals(rawData)) {
             return new String[0];
         }
         Vector<String> servers = new Vector<>();
@@ -178,18 +170,6 @@ public class Preferences {
             rawData += tmp;
         }
         editor.putString(Constants.Pref.KEY_SERVERS, rawData);
-        editor.commit();
-    }
-
-    public void setSearchKeyserver(boolean searchKeyserver) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Pref.SEARCH_KEYSERVER, searchKeyserver);
-        editor.commit();
-    }
-
-    public void setSearchKeybase(boolean searchKeybase) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Pref.SEARCH_KEYBASE, searchKeybase);
         editor.commit();
     }
 
@@ -266,17 +246,6 @@ public class Preferences {
         return Integer.parseInt(mSharedPreferences.getString(Pref.PROXY_PORT, "-1"));
     }
 
-    /**
-     * we store port as String for easy interfacing with EditTextPreference, but return it as an integer
-     *
-     * @param port proxy port
-     */
-    public void setProxyPort(String port) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putString(Pref.PROXY_PORT, port);
-        editor.commit();
-    }
-
     public Proxy.Type getProxyType() {
         final String typeHttp = Pref.ProxyType.TYPE_HTTP;
         final String typeSocks = Pref.ProxyType.TYPE_SOCKS;
@@ -333,17 +302,79 @@ public class Preferences {
 
     }
 
+    public CacheTTLPrefs getPassphraseCacheTtl() {
+        Set<String> pref = mSharedPreferences.getStringSet(Constants.Pref.PASSPHRASE_CACHE_TTLS, null);
+        if (pref == null) {
+            return CacheTTLPrefs.getDefault();
+        }
+        return new CacheTTLPrefs(pref);
+    }
+
+    public void setPassphraseCacheTtl(CacheTTLPrefs prefs) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putStringSet(Constants.Pref.PASSPHRASE_CACHE_TTLS, prefs.getStringSet());
+        editor.commit();
+    }
+
+    public static class CacheTTLPrefs implements Serializable {
+        public static final Map<Integer,Integer> CACHE_TTL_NAMES;
+        public static final ArrayList<Integer> CACHE_TTLS;
+        static {
+            HashMap<Integer,Integer> cacheTtlNames = new HashMap<>();
+            cacheTtlNames.put(0, R.string.cache_ttl_lock_screen);
+            cacheTtlNames.put(60 * 10, R.string.cache_ttl_ten_minutes);
+            cacheTtlNames.put(60 * 30, R.string.cache_ttl_thirty_minutes);
+            cacheTtlNames.put(60 * 60, R.string.cache_ttl_one_hour);
+            cacheTtlNames.put(60 * 60 * 3, R.string.cache_ttl_three_hours);
+            cacheTtlNames.put(60 * 60 * 24, R.string.cache_ttl_one_day);
+            cacheTtlNames.put(60 * 60 * 24 * 3, R.string.cache_ttl_three_days);
+            cacheTtlNames.put(Integer.MAX_VALUE, R.string.cache_ttl_forever);
+            CACHE_TTL_NAMES = Collections.unmodifiableMap(cacheTtlNames);
+
+            CACHE_TTLS = new ArrayList<>(CacheTTLPrefs.CACHE_TTL_NAMES.keySet());
+            Collections.sort(CACHE_TTLS);
+        }
+
+        public HashSet<Integer> ttlTimes;
+
+        public CacheTTLPrefs(Collection<String> ttlStrings) {
+            ttlTimes = new HashSet<>();
+            for (String ttlString : ttlStrings) {
+                ttlTimes.add(Integer.parseInt(ttlString));
+            }
+        }
+
+        public HashSet<String> getStringSet() {
+            HashSet<String> ttlTimeStrings = new HashSet<>();
+            for (Integer ttlTime : ttlTimes) {
+                ttlTimeStrings.add(Integer.toString(ttlTime));
+            }
+            return ttlTimeStrings;
+        }
+
+        public static CacheTTLPrefs getDefault() {
+            ArrayList<String> ttlStrings = new ArrayList<>();
+            ttlStrings.add(Integer.toString(0));
+            ttlStrings.add(Integer.toString(60 * 60));
+            ttlStrings.add(Integer.toString(60 * 60 * 24));
+            return new CacheTTLPrefs(ttlStrings);
+        }
+
+    }
+
     // cloud prefs
 
     public CloudSearchPrefs getCloudSearchPrefs() {
         return new CloudSearchPrefs(mSharedPreferences.getBoolean(Pref.SEARCH_KEYSERVER, true),
                 mSharedPreferences.getBoolean(Pref.SEARCH_KEYBASE, true),
+                false,
                 getPreferredKeyserver());
     }
 
-    public static class CloudSearchPrefs {
+    public static class CloudSearchPrefs implements Parcelable {
         public final boolean searchKeyserver;
         public final boolean searchKeybase;
+        public final boolean searchFacebook;
         public final String keyserver;
 
         /**
@@ -351,39 +382,56 @@ public class Preferences {
          * @param searchKeybase   should keybase.io be searched
          * @param keyserver       the keyserver url authority to search on
          */
-        public CloudSearchPrefs(boolean searchKeyserver, boolean searchKeybase, String keyserver) {
+        public CloudSearchPrefs(boolean searchKeyserver, boolean searchKeybase,
+                                boolean searchFacebook, String keyserver) {
             this.searchKeyserver = searchKeyserver;
             this.searchKeybase = searchKeybase;
+            this.searchFacebook = searchFacebook;
             this.keyserver = keyserver;
         }
+
+        protected CloudSearchPrefs(Parcel in) {
+            searchKeyserver = in.readByte() != 0x00;
+            searchKeybase = in.readByte() != 0x00;
+            searchFacebook = in.readByte() != 0x00;
+            keyserver = in.readString();
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            dest.writeByte((byte) (searchKeyserver ? 0x01 : 0x00));
+            dest.writeByte((byte) (searchKeybase ? 0x01 : 0x00));
+            dest.writeByte((byte) (searchFacebook ? 0x01 : 0x00));
+            dest.writeString(keyserver);
+        }
+
+        public static final Parcelable.Creator<CloudSearchPrefs> CREATOR
+                = new Parcelable.Creator<CloudSearchPrefs>() {
+            @Override
+            public CloudSearchPrefs createFromParcel(Parcel in) {
+                return new CloudSearchPrefs(in);
+            }
+
+            @Override
+            public CloudSearchPrefs[] newArray(int size) {
+                return new CloudSearchPrefs[size];
+            }
+        };
     }
 
     // experimental prefs
-
-    public void setExperimentalEnableWordConfirm(boolean enableWordConfirm) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Pref.EXPERIMENTAL_ENABLE_WORD_CONFIRM, enableWordConfirm);
-        editor.commit();
-    }
 
     public boolean getExperimentalEnableWordConfirm() {
         return mSharedPreferences.getBoolean(Pref.EXPERIMENTAL_ENABLE_WORD_CONFIRM, false);
     }
 
-    public void setExperimentalEnableLinkedIdentities(boolean enableLinkedIdentities) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Pref.EXPERIMENTAL_ENABLE_LINKED_IDENTITIES, enableLinkedIdentities);
-        editor.commit();
-    }
-
     public boolean getExperimentalEnableLinkedIdentities() {
         return mSharedPreferences.getBoolean(Pref.EXPERIMENTAL_ENABLE_LINKED_IDENTITIES, false);
-    }
-
-    public void setExperimentalEnableKeybase(boolean enableKeybase) {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-        editor.putBoolean(Pref.EXPERIMENTAL_ENABLE_KEYBASE, enableKeybase);
-        editor.commit();
     }
 
     public boolean getExperimentalEnableKeybase() {
@@ -408,15 +456,19 @@ public class Preferences {
                         if (server == null) {
                             continue;
                         }
-                        if (server.equals("pool.sks-keyservers.net")) {
-                            // use HKPS!
-                            it.set("hkps://hkps.pool.sks-keyservers.net");
-                        } else if (server.equals("pgp.mit.edu")) {
-                            // use HKPS!
-                            it.set("hkps://pgp.mit.edu");
-                        } else if (server.equals("subkeys.pgp.net")) {
-                            // remove, because often down and no HKPS!
-                            it.remove();
+                        switch (server) {
+                            case "pool.sks-keyservers.net":
+                                // use HKPS!
+                                it.set("hkps://hkps.pool.sks-keyservers.net");
+                                break;
+                            case "pgp.mit.edu":
+                                // use HKPS!
+                                it.set("hkps://pgp.mit.edu");
+                                break;
+                            case "subkeys.pgp.net":
+                                // remove, because often down and no HKPS!
+                                it.remove();
+                                break;
                         }
 
                     }

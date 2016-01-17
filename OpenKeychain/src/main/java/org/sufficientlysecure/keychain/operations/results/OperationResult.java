@@ -233,6 +233,18 @@ public abstract class OperationResult implements Parcelable {
             dest.writeParcelable(mSubResult, 0);
         }
 
+        public static final Parcelable.Creator<SubLogEntryParcel> CREATOR = new Parcelable.Creator<SubLogEntryParcel>() {
+            @Override
+            public SubLogEntryParcel createFromParcel(Parcel in) {
+                return new SubLogEntryParcel(in);
+            }
+
+            @Override
+            public SubLogEntryParcel[] newArray(int size) {
+                return new SubLogEntryParcel[size];
+            }
+        };
+
         @Override
         StringBuilder getPrintableLogEntry(Resources resources, int indent) {
 
@@ -550,9 +562,9 @@ public abstract class OperationResult implements Parcelable {
         MSG_MF_ERROR_CONFLICTING_NFC_COMMANDS(LogLevel.ERROR, R.string.msg_mf_error_conflicting_nfc_commands),
         MSG_MF_ERROR_DUPLICATE_KEYTOCARD_FOR_SLOT(LogLevel.ERROR, R.string.msg_mf_error_duplicate_keytocard_for_slot),
         MSG_MF_ERROR_INVALID_FLAGS_FOR_KEYTOCARD(LogLevel.ERROR, R.string.msg_mf_error_invalid_flags_for_keytocard),
-        MSG_MF_ERROR_BAD_NFC_ALGO(LogLevel.ERROR, R.string.edit_key_error_bad_nfc_algo),
-        MSG_MF_ERROR_BAD_NFC_SIZE(LogLevel.ERROR, R.string.edit_key_error_bad_nfc_size),
-        MSG_MF_ERROR_BAD_NFC_STRIPPED(LogLevel.ERROR, R.string.edit_key_error_bad_nfc_stripped),
+        MSG_MF_ERROR_BAD_SECURITY_TOKEN_ALGO(LogLevel.ERROR, R.string.edit_key_error_bad_security_token_algo),
+        MSG_MF_ERROR_BAD_SECURITY_TOKEN_SIZE(LogLevel.ERROR, R.string.edit_key_error_bad_security_token_size),
+        MSG_MF_ERROR_BAD_SECURITY_TOKEN_STRIPPED(LogLevel.ERROR, R.string.edit_key_error_bad_security_token_stripped),
         MSG_MF_MASTER (LogLevel.DEBUG, R.string.msg_mf_master),
         MSG_MF_NOTATION_PIN (LogLevel.DEBUG, R.string.msg_mf_notation_pin),
         MSG_MF_NOTATION_EMPTY (LogLevel.DEBUG, R.string.msg_mf_notation_empty),
@@ -757,6 +769,7 @@ public abstract class OperationResult implements Parcelable {
         MSG_IMPORT_FETCH_ERROR_KEYSERVER(LogLevel.ERROR, R.string.msg_import_fetch_error_keyserver),
         MSG_IMPORT_FETCH_ERROR_KEYSERVER_SECRET (LogLevel.ERROR, R.string.msg_import_fetch_error_keyserver_secret),
         MSG_IMPORT_FETCH_KEYBASE (LogLevel.INFO, R.string.msg_import_fetch_keybase),
+        MSG_IMPORT_FETCH_FACEBOOK (LogLevel.INFO, R.string.msg_import_fetch_facebook),
         MSG_IMPORT_FETCH_KEYSERVER (LogLevel.INFO, R.string.msg_import_fetch_keyserver),
         MSG_IMPORT_FETCH_KEYSERVER_OK (LogLevel.DEBUG, R.string.msg_import_fetch_keyserver_ok),
         MSG_IMPORT_KEYSERVER (LogLevel.DEBUG, R.string.msg_import_keyserver),

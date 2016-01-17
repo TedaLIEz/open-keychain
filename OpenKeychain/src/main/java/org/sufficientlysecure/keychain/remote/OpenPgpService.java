@@ -59,7 +59,7 @@ import org.sufficientlysecure.keychain.remote.ui.SelectSignKeyIdActivity;
 import org.sufficientlysecure.keychain.service.input.CryptoInputParcel;
 import org.sufficientlysecure.keychain.service.input.RequiredInputParcel;
 import org.sufficientlysecure.keychain.ui.ImportKeysActivity;
-import org.sufficientlysecure.keychain.ui.NfcOperationActivity;
+import org.sufficientlysecure.keychain.ui.SecurityTokenOperationActivity;
 import org.sufficientlysecure.keychain.ui.PassphraseDialogActivity;
 import org.sufficientlysecure.keychain.ui.ViewKeyActivity;
 import org.sufficientlysecure.keychain.util.InputData;
@@ -191,12 +191,12 @@ public class OpenPgpService extends Service {
             case NFC_MOVE_KEY_TO_CARD:
             case NFC_DECRYPT:
             case NFC_SIGN: {
-                // build PendingIntent for YubiKey NFC operations
-                Intent intent = new Intent(context, NfcOperationActivity.class);
+                // build PendingIntent for Security Token NFC operations
+                Intent intent = new Intent(context, SecurityTokenOperationActivity.class);
                 // pass params through to activity that it can be returned again later to repeat pgp operation
-                intent.putExtra(NfcOperationActivity.EXTRA_SERVICE_INTENT, data);
-                intent.putExtra(NfcOperationActivity.EXTRA_REQUIRED_INPUT, requiredInput);
-                intent.putExtra(NfcOperationActivity.EXTRA_CRYPTO_INPUT, cryptoInput);
+                intent.putExtra(SecurityTokenOperationActivity.EXTRA_SERVICE_INTENT, data);
+                intent.putExtra(SecurityTokenOperationActivity.EXTRA_REQUIRED_INPUT, requiredInput);
+                intent.putExtra(SecurityTokenOperationActivity.EXTRA_CRYPTO_INPUT, cryptoInput);
                 return PendingIntent.getActivity(context, 0, intent,
                         PendingIntent.FLAG_CANCEL_CURRENT);
             }
@@ -327,6 +327,7 @@ public class OpenPgpService extends Service {
                 Intent result = new Intent();
                 if (pgpResult.getDetachedSignature() != null && !cleartextSign) {
                     result.putExtra(OpenPgpApi.RESULT_DETACHED_SIGNATURE, pgpResult.getDetachedSignature());
+                    result.putExtra(OpenPgpApi.RESULT_SIGNATURE_MICALG, pgpResult.getMicAlgDigestName());
                 }
                 result.putExtra(OpenPgpApi.RESULT_CODE, OpenPgpApi.RESULT_CODE_SUCCESS);
                 return result;
@@ -573,18 +574,11 @@ public class OpenPgpService extends Service {
                         // case RESULT_NOT_ENCRYPTED, but a signature, fallback to deprecated signatureOnly variable
                         if (decryptionResult.getResult() == OpenPgpDecryptionResult.RESULT_NOT_ENCRYPTED
                                 && signatureResult.getResult() != OpenPgpSignatureResult.RESULT_NO_SIGNATURE) {
-                            // noinspection deprecation, TODO
+                            // noinspection deprecation
                             signatureResult.setSignatureOnly(true);
                         }
 
-                        // case RESULT_INSECURE, fallback to an error
-                        if (decryptionResult.getResult() == OpenPgpDecryptionResult.RESULT_INSECURE) {
-                            Intent resultError = new Intent();
-                            resultError.putExtra(OpenPgpApi.RESULT_ERROR, new OpenPgpError(OpenPgpError.GENERIC_ERROR,
-                                    "Insecure encryption: An outdated algorithm has been used!"));
-                            resultError.putExtra(OpenPgpApi.RESULT_CODE, OpenPgpApi.RESULT_CODE_ERROR);
-                            return resultError;
-                        }
+                        // case RESULT_INSECURE, simply accept as a fallback like in previous API versions
 
                         // case RESULT_ENCRYPTED
                         // nothing to do!

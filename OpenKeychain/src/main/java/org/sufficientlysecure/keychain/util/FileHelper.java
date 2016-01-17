@@ -29,12 +29,15 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.SecureRandom;
 import java.text.DecimalFormat;
+import java.util.List;
 
 import android.annotation.TargetApi;
 import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Point;
@@ -47,6 +50,7 @@ import android.provider.OpenableColumns;
 import android.support.v4.app.Fragment;
 import android.widget.Toast;
 
+import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 
 /** This class offers a number of helper functions for saving documents.
@@ -75,6 +79,8 @@ import org.sufficientlysecure.keychain.R;
  */
 public class FileHelper {
 
+    private static Boolean hasOpenDocumentIntent;
+
     @TargetApi(VERSION_CODES.KITKAT)
     public static void saveDocument(Fragment fragment, String targetName, int requestCode) {
         saveDocument(fragment, targetName, "*/*", requestCode);
@@ -93,7 +99,8 @@ public class FileHelper {
     }
 
     public static void openDocument(Fragment fragment, Uri last, String mimeType, boolean multiple, int requestCode) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT
+                && hasOpenDocumentIntent(fragment.getContext())) {
             openDocumentKitKat(fragment, mimeType, multiple, requestCode);
         } else {
             openDocumentPreKitKat(fragment, last, mimeType, multiple, requestCode);
@@ -132,7 +139,27 @@ public class FileHelper {
         // Note: This is not documented, but works: Show the Internal Storage menu item in the drawer!
         intent.putExtra("android.content.extra.SHOW_ADVANCED", true);
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, multiple);
+
         fragment.startActivityForResult(intent, requestCode);
+    }
+
+    /**
+     * Does the device actually have a ACTION_OPEN_DOCUMENT Intent? Looks like some Android
+     * distributions are missing the ACTION_OPEN_DOCUMENT Intent even on Android 4.4,
+     * see https://github.com/open-keychain/open-keychain/issues/1625
+     *
+     * @return True, if the device supports ACTION_OPEN_DOCUMENT. False, otherwise.
+     */
+    @TargetApi(VERSION_CODES.KITKAT)
+    private static boolean hasOpenDocumentIntent(Context context) {
+        if (hasOpenDocumentIntent == null) {
+            PackageManager packageManager = context.getPackageManager();
+            List<ResolveInfo> resolveInfoList = packageManager.queryIntentActivities(
+                    new Intent(Intent.ACTION_OPEN_DOCUMENT), 0);
+            hasOpenDocumentIntent = !resolveInfoList.isEmpty();
+        }
+
+        return hasOpenDocumentIntent;
     }
 
     public static String getFilename(Context context, Uri uri) {

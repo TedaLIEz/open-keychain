@@ -44,7 +44,7 @@ public class EmailKeyHelper {
         private String mKeyserver;
 
         public ImportContactKeysCallback(Context context, String keyserver, Proxy proxy) {
-            this(context, ContactHelper.getContactMails(context), keyserver, proxy);
+            this(context, new ContactHelper(context).getContactMails(), keyserver, proxy);
         }
 
         public ImportContactKeysCallback(Context context, List<String> mails, String keyserver,
@@ -57,7 +57,7 @@ public class EmailKeyHelper {
             // Put them in a list and import
             ArrayList<ParcelableKeyRing> keys = new ArrayList<>(entries.size());
             for (ImportKeysListEntry entry : entries) {
-                keys.add(new ParcelableKeyRing(entry.getFingerprintHex(), entry.getKeyIdHex(), null));
+                keys.add(new ParcelableKeyRing(entry.getFingerprintHex(), entry.getKeyIdHex()));
             }
             mKeyList = keys;
             mKeyserver = keyserver;
