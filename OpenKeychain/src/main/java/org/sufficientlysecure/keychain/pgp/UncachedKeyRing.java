@@ -35,22 +35,22 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
 
-import org.spongycastle.bcpg.ArmoredOutputStream;
-import org.spongycastle.bcpg.PublicKeyAlgorithmTags;
-import org.spongycastle.bcpg.SignatureSubpacketTags;
-import org.spongycastle.bcpg.UserAttributeSubpacketTags;
-import org.spongycastle.bcpg.sig.KeyFlags;
-import org.spongycastle.openpgp.PGPKeyRing;
-import org.spongycastle.openpgp.PGPObjectFactory;
-import org.spongycastle.openpgp.PGPPublicKey;
-import org.spongycastle.openpgp.PGPPublicKeyRing;
-import org.spongycastle.openpgp.PGPSecretKey;
-import org.spongycastle.openpgp.PGPSecretKeyRing;
-import org.spongycastle.openpgp.PGPSignature;
-import org.spongycastle.openpgp.PGPSignatureList;
-import org.spongycastle.openpgp.PGPUserAttributeSubpacketVector;
-import org.spongycastle.openpgp.PGPUtil;
-import org.spongycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
+import org.bouncycastle.bcpg.SignatureSubpacketTags;
+import org.bouncycastle.bcpg.UserAttributeSubpacketTags;
+import org.bouncycastle.bcpg.sig.KeyFlags;
+import org.bouncycastle.openpgp.PGPKeyRing;
+import org.bouncycastle.openpgp.PGPObjectFactory;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureList;
+import org.bouncycastle.openpgp.PGPUserAttributeSubpacketVector;
+import org.bouncycastle.openpgp.PGPUtil;
+import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.operations.results.OperationResult.LogType;
 import org.sufficientlysecure.keychain.operations.results.OperationResult.OperationLog;
@@ -221,7 +221,6 @@ public class UncachedKeyRing {
         public boolean hasNext() throws IOException;
         public E next() throws IOException;
     }
-
     public void encodeArmored(OutputStream out, String version) throws IOException {
         ArmoredOutputStream aos = new ArmoredOutputStream(out);
         if (version != null) {
@@ -250,8 +249,21 @@ public class UncachedKeyRing {
      *  - Remove all non-verifying self-certificates
      *  - Remove all "future" self-certificates
      *  - Remove all certificates flagged as "local"
-     *  - Remove all certificates which are superseded by a newer one on the same target,
-     *      including revocations with later re-certifications.
+     *  - For UID certificates, remove all certificates which are
+     *      superseded by a newer one on the same target, including
+     *      revocations with later re-certifications.
+     *  - For subkey certifications, remove all certificates which
+     *      are superseded by a newer one on the same target, unless
+     *      it encounters a revocation certificate. The revocation
+     *      certificate is considered to permanently revoke the key,
+     *      even if contains later re-certifications.
+     *  This is the "behavior in practice" used by (e.g.) GnuPG, and
+     *  the rationale for both can be found as comments in the GnuPG
+     *  source.
+     *  UID signatures:
+     *  https://github.com/mtigas/gnupg/blob/50c98c7ed6b542857ee2f902eca36cda37407737/g10/getkey.c#L1668-L1674
+     *  Subkey signatures:
+     *  https://github.com/mtigas/gnupg/blob/50c98c7ed6b542857ee2f902eca36cda37407737/g10/getkey.c#L1990-L1997
      *  - Remove all certificates in other positions if not of known type:
      *   - key revocation signatures on the master key
      *   - subkey binding signatures for subkeys
@@ -278,8 +290,21 @@ public class UncachedKeyRing {
      *  - Remove all non-verifying self-certificates
      *  - Remove all "future" self-certificates
      *  - Remove all certificates flagged as "local"
-     *  - Remove all certificates which are superseded by a newer one on the same target,
-     *      including revocations with later re-certifications.
+     *  - For UID certificates, remove all certificates which are
+     *      superseded by a newer one on the same target, including
+     *      revocations with later re-certifications.
+     *  - For subkey certifications, remove all certificates which
+     *      are superseded by a newer one on the same target, unless
+     *      it encounters a revocation certificate. The revocation
+     *      certificate is considered to permanently revoke the key,
+     *      even if contains later re-certifications.
+     *  This is the "behavior in practice" used by (e.g.) GnuPG, and
+     *  the rationale for both can be found as comments in the GnuPG
+     *  source.
+     *  UID signatures:
+     *  https://github.com/mtigas/gnupg/blob/50c98c7ed6b542857ee2f902eca36cda37407737/g10/getkey.c#L1668-L1674
+     *  Subkey signatures:
+     *  https://github.com/mtigas/gnupg/blob/50c98c7ed6b542857ee2f902eca36cda37407737/g10/getkey.c#L1990-L1997
      *  - Remove all certificates in other positions if not of known type:
      *   - key revocation signatures on the master key
      *   - subkey binding signatures for subkeys
@@ -950,12 +975,6 @@ public class UncachedKeyRing {
                     }
 
                     selfCert = zert;
-                    // if this is newer than a possibly existing revocation, drop that one
-                    if (revocation != null && selfCert.getCreationTime().after(revocation.getCreationTime())) {
-                        log.add(LogType.MSG_KC_SUB_REVOKE_DUP, indent);
-                        redundantCerts += 1;
-                        revocation = null;
-                    }
 
                 // it must be a revocation, then (we made sure above)
                 } else {
@@ -974,8 +993,9 @@ public class UncachedKeyRing {
                         continue;
                     }
 
-                    // if there is a certification that is newer than this revocation, don't bother
-                    if (selfCert != null && selfCert.getCreationTime().after(cert.getCreationTime())) {
+                    // If we already have a newer revocation cert, skip this one.
+                    if (revocation != null &&
+                        revocation.getCreationTime().after(cert.getCreationTime())) {
                         log.add(LogType.MSG_KC_SUB_REVOKE_DUP, indent);
                         redundantCerts += 1;
                         continue;

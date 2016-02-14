@@ -18,7 +18,7 @@
     <string name="title_preferences">"Settings"</string>
     <string name="title_api_registered_apps">"Apps"</string>
     <string name="title_key_server_preference">"OpenPGP keyservers"</string>
-    <string name="title_cache_ttl_preference">"Customize 'Remember' Choices"</string>
+    <string name="title_cache_ttl_preference">"Customize 'Remember' choices"</string>
     <string name="title_change_passphrase">"Change Password"</string>
     <string name="title_share_fingerprint_with">"Share fingerprint with…"</string>
     <string name="title_share_key">"Share key with…"</string>
@@ -158,7 +158,7 @@
     <string name="label_encryption_algorithm">"Encryption algorithm"</string>
     <string name="label_hash_algorithm">"Hash algorithm"</string>
     <string name="label_symmetric">"Encrypt with password"</string>
-    <string name="label_passphrase_cache_ttl">"Customize 'Remember' Choices"</string>
+    <string name="label_passphrase_cache_ttl">"Customize 'Remember' choices"</string>
     <string name="label_passphrase_cache_subs">"Remember passwords by subkey"</string>
     <string name="label_message_compression">"Text compression"</string>
     <string name="label_file_compression">"File compression"</string>
@@ -502,6 +502,7 @@
     <string name="help_tab_changelog">"Changelog"</string>
     <string name="help_tab_about">"About"</string>
     <string name="help_about_version">"Version:"</string>
+    <string name="help_tab_donations">"Donate"</string>
 
     <!-- Import -->
     <string name="import_tab_keyserver">"Keyserver"</string>
@@ -1410,16 +1411,12 @@
 
     <string name="msg_acc_saved">"Account saved"</string>
 
-    <string name="msg_download_success">"Downloaded successfully!"</string>
-    <string name="msg_download_no_valid_keys">"No valid keys found in file/clipboard!"</string>
-    <string name="msg_download_no_pgp_parts">"TODO: plurals!"</string>
-    <plurals name="error_import_non_pgp_part">
-        <item quantity="one">"part of the loaded file is a valid OpenPGP object but not a OpenPGP key"</item>
-        <item quantity="other">"parts of the loaded file are valid OpenPGP objects but not OpenPGP keys"</item>
-    </plurals>
-    <string name="msg_download_query_too_short">"Search query too short. Please refine your query!"</string>
-    <string name="msg_download_too_many_responses">"Key search query returned too many candidates. Please refine your query!"</string>
-    <string name="msg_download_query_too_short_or_too_many_responses">"Either no keys or too many have been found. Please improve your query!"</string>
+    <string name="msg_get_success">"Downloaded successfully!"</string>
+    <string name="msg_get_file_not_found">"Input file not found!"</string>
+    <string name="msg_get_no_valid_keys">"No valid keys found in file/clipboard!"</string>
+    <string name="msg_get_too_many_responses">"Key search query returned too many candidates. Please refine your query!"</string>
+    <string name="msg_get_query_too_short">"Search query too short. Please refine your query!"</string>
+    <string name="msg_get_query_too_short_or_too_many_responses">"Either no keys or too many have been found. Please improve your query!"</string>
 
     <string name="msg_download_query_failed">"An error occurred when searching for keys."</string>
 
@@ -1729,5 +1726,13 @@
     <string name="prompt_fidesmo_app_install_message">"To install PGP you need the Fidesmo Android app."</string>
     <string name="prompt_fidesmo_app_install_button_positive">"Install"</string>
     <string name="prompt_fidesmo_app_install_button_negative">"Cancel"</string>
-
+    <string name="help_donation_paypal_item">OpenKeychain Donation</string>
+    <string-array name="help_donation_google_catalog_values">
+        <item>1 EUR</item>
+        <item>3 EUR</item>
+        <item>5 EUR</item>
+        <item>10 EUR</item>
+        <item>50 EUR</item>
+        <item>100 EUR</item>
+    </string-array>
 </resources>
