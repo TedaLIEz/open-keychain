@@ -18,11 +18,6 @@
 package org.sufficientlysecure.keychain.remote;
 
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -40,8 +35,12 @@ import org.sufficientlysecure.keychain.Constants;
 import org.sufficientlysecure.keychain.R;
 import org.sufficientlysecure.keychain.provider.KeychainContract;
 import org.sufficientlysecure.keychain.provider.ProviderHelper;
-import org.sufficientlysecure.keychain.remote.ui.RemoteServiceActivity;
 import org.sufficientlysecure.keychain.util.Log;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 
 /**
@@ -73,6 +72,8 @@ public class ApiPermissionHelper {
      * @return null if caller is allowed, or a Bundle with a PendingIntent
      */
     protected Intent isAllowed(Intent data) {
+        ApiPendingIntentFactory piFactory = new ApiPendingIntentFactory(mContext);
+
         try {
             if (isCallerAllowed()) {
                 return null;
@@ -94,15 +95,8 @@ public class ApiPermissionHelper {
                 }
                 Log.e(Constants.TAG, "Not allowed to use service! return PendingIntent for registration!");
 
-                Intent intent = new Intent(mContext, RemoteServiceActivity.class);
-                intent.setAction(RemoteServiceActivity.ACTION_REGISTER);
-                intent.putExtra(RemoteServiceActivity.EXTRA_PACKAGE_NAME, packageName);
-                intent.putExtra(RemoteServiceActivity.EXTRA_PACKAGE_SIGNATURE, packageCertificate);
-                intent.putExtra(RemoteServiceActivity.EXTRA_DATA, data);
-
-                PendingIntent pi = PendingIntent.getActivity(mContext, 0,
-                        intent,
-                        PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT);
+                PendingIntent pi = piFactory.createRegisterPendingIntent(data,
+                        packageName, packageCertificate);
 
                 // return PendingIntent to be executed by client
                 Intent result = new Intent();
@@ -114,15 +108,7 @@ public class ApiPermissionHelper {
         } catch (WrongPackageCertificateException e) {
             Log.e(Constants.TAG, "wrong signature!", e);
 
-            Intent intent = new Intent(mContext, RemoteServiceActivity.class);
-            intent.setAction(RemoteServiceActivity.ACTION_ERROR_MESSAGE);
-            intent.putExtra(RemoteServiceActivity.EXTRA_ERROR_MESSAGE,
-                    mContext.getString(R.string.api_error_wrong_signature));
-            intent.putExtra(RemoteServiceActivity.EXTRA_DATA, data);
-
-            PendingIntent pi = PendingIntent.getActivity(mContext, 0,
-                    intent,
-                    PendingIntent.FLAG_CANCEL_CURRENT);
+            PendingIntent pi = piFactory.createErrorPendingIntent(data, mContext.getString(R.string.api_error_wrong_signature));
 
             // return PendingIntent to be executed by client
             Intent result = new Intent();
@@ -173,10 +159,9 @@ public class ApiPermissionHelper {
     }
 
     /**
-     * DEPRECATED API
-     * <p/>
      * Retrieves AccountSettings from database for the application calling this remote service
      */
+    @Deprecated
     protected AccountSettings getAccSettings(String accountName) {
         String currentPkg = getCurrentCallingPackage();
         Log.d(Constants.TAG, "getAccSettings accountName: " + accountName);
@@ -186,22 +171,15 @@ public class ApiPermissionHelper {
         return mProviderHelper.getApiAccountSettings(uri); // can be null!
     }
 
-    /**
-     * Deprecated API
-     */
+    @Deprecated
     protected Intent getCreateAccountIntent(Intent data, String accountName) {
         String packageName = getCurrentCallingPackage();
         Log.d(Constants.TAG, "getCreateAccountIntent accountName: " + accountName);
 
-        Intent intent = new Intent(mContext, RemoteServiceActivity.class);
-        intent.setAction(RemoteServiceActivity.ACTION_CREATE_ACCOUNT);
-        intent.putExtra(RemoteServiceActivity.EXTRA_PACKAGE_NAME, packageName);
-        intent.putExtra(RemoteServiceActivity.EXTRA_ACC_NAME, accountName);
-        intent.putExtra(RemoteServiceActivity.EXTRA_DATA, data);
+        ApiPendingIntentFactory piFactory = new ApiPendingIntentFactory(mContext);
 
-        PendingIntent pi = PendingIntent.getActivity(mContext, 0,
-                intent,
-                PendingIntent.FLAG_CANCEL_CURRENT);
+        PendingIntent pi = piFactory.createAccountCreationPendingIntent(data,
+                packageName, accountName);
 
         // return PendingIntent to be executed by client
         Intent result = new Intent();
